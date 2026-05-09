@@ -1,0 +1,66 @@
+.tree-container {
+  position: relative;
+  height: 100%;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(139, 105, 20, 0.05), transparent 45%),
+    radial-gradient(circle at 80% 40%, rgba(196, 115, 79, 0.05), transparent 50%),
+    var(--bg-primary);
+}
+
+.tree-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.tree-controls {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  display: flex;
+  gap: 6px;
+  background: rgba(255, 252, 247, 0.8);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(6px);
+}
+
+.tree-empty {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+.tree-empty-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-xl);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-md);
+  display: grid;
+  place-items: center;
+}
+
+.tree-empty h3 {
+  color: var(--text-secondary);
+  font-size: 18px;
+}
+
+.tree-empty p {
+  max-width: 320px;
+}
+
+.tree-node text {
+  user-select: none;
+}
+
+.tree-link {
+  stroke-linecap: round;
+}
+

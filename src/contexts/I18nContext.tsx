@@ -11,14 +11,23 @@ interface I18nContextType {
 
 const I18nContext = createContext<I18nContextType>(null!);
 
+const LANG_KEY = 'homesome_lang';
+const LEGACY_LANG_KEY = 'zupu_lang';
+
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Language>(
-    () => (localStorage.getItem('zupu_lang') as Language) || 'zh'
+    () => {
+      const legacy = localStorage.getItem(LEGACY_LANG_KEY) as Language | null;
+      const current = localStorage.getItem(LANG_KEY) as Language | null;
+      const next = current || legacy || 'zh';
+      localStorage.setItem(LANG_KEY, next);
+      return next;
+    }
   );
 
   const setLang = useCallback((l: Language) => {
     setLangState(l);
-    localStorage.setItem('zupu_lang', l);
+    localStorage.setItem(LANG_KEY, l);
   }, []);
 
   const toggleLang = useCallback(() => {

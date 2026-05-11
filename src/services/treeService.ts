@@ -15,10 +15,38 @@ import type { Person, FamilyTree } from '../types';
 import { generateId, generateShareCode } from '../utils/helpers';
 
 // ── Local Storage fallback ──
-const LS_TREES_KEY = 'zupu_trees';
-const LS_MEMBERS_PREFIX = 'zupu_members_';
+const LS_TREES_KEY = 'homesome_trees';
+const LS_MEMBERS_PREFIX = 'homesome_members_';
+const LEGACY_LS_TREES_KEY = 'zupu_trees';
+const LEGACY_LS_MEMBERS_PREFIX = 'zupu_members_';
+
+function migrateLegacyLocalStorageIfNeeded() {
+  // One-time migration: if new keys are empty but legacy exists, copy over.
+  if (!localStorage.getItem(LS_TREES_KEY)) {
+    const legacyTrees = localStorage.getItem(LEGACY_LS_TREES_KEY);
+    if (legacyTrees) localStorage.setItem(LS_TREES_KEY, legacyTrees);
+  }
+
+  // Members are per-tree keys; migrate those we can discover from trees.
+  const raw = localStorage.getItem(LS_TREES_KEY) || localStorage.getItem(LEGACY_LS_TREES_KEY);
+  if (!raw) return;
+  try {
+    const trees = JSON.parse(raw) as Array<{ id?: string }>;
+    for (const t of trees) {
+      const treeId = t?.id;
+      if (!treeId) continue;
+      const newKey = LS_MEMBERS_PREFIX + treeId;
+      if (localStorage.getItem(newKey)) continue;
+      const legacy = localStorage.getItem(LEGACY_LS_MEMBERS_PREFIX + treeId);
+      if (legacy) localStorage.setItem(newKey, legacy);
+    }
+  } catch {
+    // ignore
+  }
+}
 
 function getLocalTrees(): FamilyTree[] {
+  migrateLegacyLocalStorageIfNeeded();
   const data = localStorage.getItem(LS_TREES_KEY);
   return data ? JSON.parse(data) : [];
 }
@@ -26,6 +54,7 @@ function saveLocalTrees(trees: FamilyTree[]) {
   localStorage.setItem(LS_TREES_KEY, JSON.stringify(trees));
 }
 function getLocalMembers(treeId: string): Person[] {
+  migrateLegacyLocalStorageIfNeeded();
   const data = localStorage.getItem(LS_MEMBERS_PREFIX + treeId);
   return data ? JSON.parse(data) : [];
 }

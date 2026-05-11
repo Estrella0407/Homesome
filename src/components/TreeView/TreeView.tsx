@@ -9,16 +9,19 @@ interface Props {
   members: Person[];
   rootId: string;
   sideFilter: SideFilter;
+  selectedPersonId: string | null;
   onSelectPerson: (person: Person) => void;
   onAddChild: (parentId: string) => void;
   onAddSpouse: (personId: string) => void;
+  onAddParent: (childId: string) => void;
+  onAddSibling: (personId: string) => void;
   onAddRoot: () => void;
 }
 
 const COUPLE_W = NODE_WIDTH * 2 + SPOUSE_GAP;
 const LEVEL_H = NODE_HEIGHT + 80;
 
-export default function TreeView({ members, rootId, sideFilter, onSelectPerson, onAddChild, onAddSpouse, onAddRoot }: Props) {
+export default function TreeView({ members, rootId, sideFilter, selectedPersonId, onSelectPerson, onAddChild, onAddSpouse, onAddParent, onAddSibling, onAddRoot }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
@@ -45,11 +48,13 @@ export default function TreeView({ members, rootId, sideFilter, onSelectPerson, 
     hierarchy.links().forEach((link) => {
       const sx = link.source.x ?? 0, sy = link.source.y ?? 0;
       const tx = link.target.x ?? 0, ty = link.target.y ?? 0;
-      const midY = sy + NODE_HEIGHT + 20;
+      const startY = sy + NODE_HEIGHT - 35;
+      const endY = ty - 5;
+      const midY = startY + (endY - startY) / 2;
 
       linkG.append('path')
         .attr('class', 'tree-link')
-        .attr('d', `M${sx},${sy + NODE_HEIGHT - 10} L${sx},${midY} L${tx},${midY} L${tx},${ty + 10}`)
+        .attr('d', `M${sx},${startY} L${sx},${midY} L${tx},${midY} L${tx},${endY}`)
         .attr('fill', 'none')
         .attr('stroke', 'var(--border-primary)')
         .attr('stroke-width', 2)
@@ -69,17 +74,18 @@ export default function TreeView({ members, rootId, sideFilter, onSelectPerson, 
       const nodeG = g.append('g')
         .attr('class', 'tree-node')
         .attr('transform', `translate(${nx},${ny})`)
-        .style('opacity', 0);
+        .style('opacity', 0)
+        .style('pointer-events', 'all');
 
       nodeG.transition().delay(i * 50).duration(400).style('opacity', 1);
 
       // Render primary person
-      renderPersonNode(nodeG, person, offsetX, onSelectPerson, onAddChild, onAddSpouse);
+      renderPersonNode(nodeG, person, offsetX, selectedPersonId, onSelectPerson, onAddChild, onAddSpouse, onAddSibling, onAddParent);
 
       // Render spouse
       if (spouse && hasSpouse) {
         const spouseX = NODE_WIDTH / 2 + SPOUSE_GAP / 2;
-        renderPersonNode(nodeG, spouse, spouseX, onSelectPerson, onAddChild, onAddSpouse);
+        renderPersonNode(nodeG, spouse, spouseX, selectedPersonId, onSelectPerson, onAddChild, onAddSpouse, onAddSibling, onAddParent);
 
         // Spouse connection line
         nodeG.append('line')
@@ -92,23 +98,8 @@ export default function TreeView({ members, rootId, sideFilter, onSelectPerson, 
           .attr('stroke-dasharray', '4,4');
       }
 
-      // Add child button
-      const btnY = NODE_HEIGHT - 5;
-      const addBtn = nodeG.append('g')
-        .attr('class', 'add-child-btn')
-        .attr('transform', `translate(0,${btnY})`)
-        .style('cursor', 'pointer')
-        .style('opacity', 0)
-        .on('click', (e) => { e.stopPropagation(); onAddChild(person.id); });
-
-      addBtn.append('circle').attr('r', 12).attr('fill', 'var(--accent-gold)').attr('opacity', 0.9);
-      addBtn.append('text').attr('text-anchor', 'middle').attr('dy', '0.35em')
-        .attr('fill', 'white').attr('font-size', '16').attr('font-weight', '300').text('+');
-
-      nodeG.on('mouseenter', () => addBtn.transition().duration(200).style('opacity', 1));
-      nodeG.on('mouseleave', () => addBtn.transition().duration(200).style('opacity', 0));
     });
-  }, [members, rootId, sideFilter, onSelectPerson, onAddChild, onAddSpouse]);
+  }, [members, rootId, sideFilter, onSelectPerson, onAddChild, onAddSpouse, onAddParent, onAddSibling]);
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -195,14 +186,18 @@ function renderPersonNode(
   parent: d3.Selection<SVGGElement, unknown, null, undefined>,
   person: Person,
   offsetX: number,
+  selectedPersonId: string | null,
   onSelect: (p: Person) => void,
-  _onAddChild: (id: string) => void,
-  onAddSpouse: (id: string) => void
+  onAddChild: (id: string) => void,
+  onAddSpouse: (id: string) => void,
+  onAddSibling: (id: string) => void,
+  onAddParent: (id: string) => void
 ) {
   const photoSize = 56;
   const g = parent.append('g')
     .attr('transform', `translate(${offsetX}, 0)`)
     .style('cursor', 'pointer')
+    .style('pointer-events', 'all')
     .on('click', () => onSelect(person));
 
   // Background card
@@ -212,7 +207,8 @@ function renderPersonNode(
     .attr('rx', 12).attr('fill', 'var(--bg-card)')
     .attr('stroke', person.side === 'maternal' ? 'var(--maternal-color)' : person.side === 'self' ? 'var(--accent-jade)' : 'var(--paternal-color)')
     .attr('stroke-width', 1.5)
-    .attr('filter', 'url(#shadow)');
+    .attr('filter', 'url(#shadow)')
+    .style('pointer-events', 'all');
 
   // Photo
   const imgSize = photoSize;
@@ -251,28 +247,58 @@ function renderPersonNode(
       .text(lifespan);
   }
 
-  // Add spouse button (if no spouse)
+  const isSelected = selectedPersonId === person.id;
+  const actionOverlay = g.append('g').style('opacity', isSelected ? 1 : 0);
+  const actionButtons = [
+    { x: -NODE_WIDTH / 2 + 18, y: -22, symbol: '↑', title: '添加父/母', handler: () => onAddParent(person.id) },
+    { x: 0, y: NODE_HEIGHT - 42, symbol: '+', title: '添加子女', handler: () => onAddChild(person.id) },
+    { x: NODE_WIDTH / 2 - 18, y: -22, symbol: '↔', title: '添加兄弟姐妹', handler: () => onAddSibling(person.id) },
+  ];
+
+  actionButtons.forEach((button) => {
+    const btn = actionOverlay.append('g')
+      .attr('transform', `translate(${button.x},${button.y})`)
+      .style('cursor', 'pointer')
+      .on('click', (e) => { e.stopPropagation(); button.handler(); });
+
+    btn.append('circle').attr('r', 10).attr('fill', 'var(--accent-gold-dark)').attr('opacity', 0.9);
+    btn.append('text').attr('text-anchor', 'middle').attr('dy', '0.35em')
+      .attr('fill', 'white').attr('font-size', '12').attr('font-weight', '600')
+      .text(button.symbol);
+    btn.append('title').text(button.title);
+  });
+
+  let spBtn: d3.Selection<SVGGElement, unknown, null, undefined> | null = null;
   if (person.spouseIds.length === 0) {
-    const spBtn = g.append('g')
+    spBtn = g.append('g')
       .attr('class', 'add-spouse-btn')
       .attr('transform', `translate(${NODE_WIDTH / 2 - 15}, 25)`)
-      .style('cursor', 'pointer').style('opacity', 0)
+      .style('cursor', 'pointer').style('opacity', isSelected ? 1 : 0)
       .on('click', (e) => { e.stopPropagation(); onAddSpouse(person.id); });
     spBtn.append('circle').attr('r', 9).attr('fill', 'var(--accent-warm)').attr('opacity', 0.85);
     spBtn.append('text').attr('text-anchor', 'middle').attr('dy', '0.35em')
       .attr('fill', 'white').attr('font-size', '12').text('♥');
-
-    g.on('mouseenter', () => spBtn.transition().duration(200).style('opacity', 1));
-    g.on('mouseleave', () => spBtn.transition().duration(200).style('opacity', 0));
+    spBtn.append('title').text('添加配偶');
   }
 
+  g.on('mouseover', () => {
+    actionOverlay.transition().duration(150).style('opacity', 1);
+    if (spBtn) spBtn.transition().duration(150).style('opacity', 1);
+  });
+  g.on('mouseout', () => {
+    if (!isSelected) {
+      actionOverlay.transition().duration(150).style('opacity', 0);
+      if (spBtn) spBtn.transition().duration(150).style('opacity', 0);
+    }
+  });
+
   // Hover effect
-  g.on('mouseenter.highlight', function () {
+  g.on('mouseover.highlight', function () {
     d3.select(this).select('rect').transition().duration(150)
       .attr('stroke-width', 2.5)
       .attr('filter', 'url(#shadow-hover)');
   });
-  g.on('mouseleave.highlight', function () {
+  g.on('mouseout.highlight', function () {
     d3.select(this).select('rect').transition().duration(150)
       .attr('stroke-width', 1.5)
       .attr('filter', 'url(#shadow)');

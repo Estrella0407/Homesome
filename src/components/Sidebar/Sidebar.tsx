@@ -22,7 +22,7 @@ export default function Sidebar({ currentPage, onNavigate, open, onClose }: Prop
       {open && <div className="sidebar-overlay" onClick={onClose} />}
       <aside className={`app-sidebar${open ? ' open' : ''}`}>
         <div className="sidebar-brand">
-          <div className="brand-icon">族</div>
+          <div className="brand-icon">馨</div>
           <div className="brand-text">
             <span className="brand-name">{t('app.name')}</span>
             <span className="brand-sub">{t('app.subtitle')}</span>

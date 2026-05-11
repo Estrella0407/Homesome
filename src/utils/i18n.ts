@@ -1,9 +1,9 @@
 export const translations = {
   zh: {
-    'app.name': '族谱',
-    'app.subtitle': 'ZuPu',
-    'app.tagline': '记录家族故事，传承家族文化',
-    'auth.welcome': '欢迎来到族谱',
+    'app.name': '家馨',
+    'app.subtitle': 'Homesome',
+    'app.tagline': '记录家族故事，温暖传承家人记忆',
+    'auth.welcome': '欢迎来到家馨',
     'auth.description': '让家族记忆永存，传承中华孝道与文化',
     'auth.signInGoogle': '使用 Google 登录',
     'auth.signingIn': '登录中...',
@@ -84,10 +84,10 @@ export const translations = {
     'common.cancel': '取消',
   },
   en: {
-    'app.name': 'ZuPu',
-    'app.subtitle': '族谱',
-    'app.tagline': 'Record family stories, preserve family culture',
-    'auth.welcome': 'Welcome to ZuPu',
+    'app.name': 'Homesome',
+    'app.subtitle': '家馨',
+    'app.tagline': 'Record family stories, preserve warm memories',
+    'auth.welcome': 'Welcome to Homesome',
     'auth.description': 'Preserve family memories, honor traditions and culture',
     'auth.signInGoogle': 'Sign in with Google',
     'auth.signingIn': 'Signing in...',

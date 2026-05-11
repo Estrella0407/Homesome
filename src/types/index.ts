@@ -3,6 +3,11 @@ export interface Person {
   name: string;
   surname: string;
   gender: 'male' | 'female';
+  /**
+   * ISO date string (YYYY-MM-DD). Optional for partial knowledge.
+   * Keep `birthYear` for backwards compatibility and quick display.
+   */
+  birthDate?: string | null;
   birthYear: string;
   deathYear: string | null;
   photoUrl: string | null;

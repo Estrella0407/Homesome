@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: '族谱 ZuPu',
-        short_name: 'ZuPu',
-        description: '记录家族故事，传承家族文化',
+        name: '家馨 Homesome',
+        short_name: 'Homesome',
+        description: '记录家族故事，温暖传承家人记忆',
         theme_color: '#8B6914',
         background_color: '#FAF6F0',
         display: 'standalone',

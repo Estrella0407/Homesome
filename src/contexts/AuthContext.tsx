@@ -18,8 +18,11 @@ const AuthContext = createContext<AuthContextType>({
 
 const DEMO_USER = {
   uid: 'demo-user', displayName: '体验用户',
-  email: 'demo@zupu.app', photoURL: null,
+  email: 'demo@homesome.app', photoURL: null,
 } as unknown as User;
+
+const DEMO_AUTH_KEY = 'homesome_demo_auth';
+const LEGACY_DEMO_AUTH_KEY = 'zupu_demo_auth';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -28,7 +31,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isConfigured || !auth) {
-      if (localStorage.getItem('zupu_demo_auth')) setUser(DEMO_USER);
+      if (localStorage.getItem(DEMO_AUTH_KEY) || localStorage.getItem(LEGACY_DEMO_AUTH_KEY)) {
+        localStorage.setItem(DEMO_AUTH_KEY, 'true');
+        setUser(DEMO_USER);
+      }
       setLoading(false);
       return;
     }
@@ -37,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     if (!isConfigured || !auth || !googleProvider) {
-      localStorage.setItem('zupu_demo_auth', 'true');
+      localStorage.setItem(DEMO_AUTH_KEY, 'true');
       setUser(DEMO_USER);
       return;
     }
@@ -46,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     if (!isConfigured || !auth) {
-      localStorage.removeItem('zupu_demo_auth');
+      localStorage.removeItem(DEMO_AUTH_KEY);
       setUser(null);
       return;
     }

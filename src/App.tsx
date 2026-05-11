@@ -58,8 +58,8 @@ function AppFrame() {
             </svg>
           </button>
           <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-            <span style={{ fontFamily: 'var(--font-chinese)', fontWeight: 700, color: 'var(--text-primary)' }}>族谱</span>
-            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>ZuPu</span>
+            <span style={{ fontFamily: 'var(--font-chinese)', fontWeight: 700, color: 'var(--text-primary)' }}>家馨</span>
+            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Homesome</span>
           </div>
         </header>
 

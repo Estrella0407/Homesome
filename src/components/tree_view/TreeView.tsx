@@ -13,17 +13,18 @@ interface Props {
   sideFilter: SideFilter;
   selectedPersonId: string | null;
   onSelectPerson: (person: Person) => void;
+  onAddParent: (personId: string) => void;
   onAddChild: (parentId: string) => void;
-  onAddSpouse: (personId: string) => void;
-  onAddParent: (childId: string) => void;
   onAddSibling: (personId: string) => void;
+  onAddSpouse: (personId: string) => void;
+  onEditPerson: (personId: string) => void;
   onAddRoot: () => void;
 }
 
 const COUPLE_W = NODE_WIDTH * 2 + SPOUSE_GAP;
 const LEVEL_H = NODE_HEIGHT + 80;
 
-export default function TreeView({ members, rootId, sideFilter, selectedPersonId, onSelectPerson, onAddChild, onAddSpouse, onAddParent, onAddSibling, onAddRoot }: Props) {
+export default function TreeView({ members, rootId, sideFilter, selectedPersonId, onSelectPerson, onAddParent, onAddChild, onAddSibling, onAddSpouse, onEditPerson, onAddRoot }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
@@ -83,12 +84,12 @@ export default function TreeView({ members, rootId, sideFilter, selectedPersonId
       nodeG.transition().delay(i * 50).duration(400).style('opacity', 1);
 
       // Render primary person
-      renderPersonNode(nodeG, person, offsetX, selectedPersonId, onSelectPerson, onAddChild, onAddSpouse, onAddSibling, onAddParent, lang);
+      renderPersonNode(nodeG, person, offsetX, selectedPersonId, onSelectPerson, onAddParent, onAddChild, onAddSibling, onAddSpouse, onEditPerson, lang);
 
       // Render spouse
       if (spouse && hasSpouse) {
         const spouseX = NODE_WIDTH / 2 + SPOUSE_GAP / 2;
-        renderPersonNode(nodeG, spouse, spouseX, selectedPersonId, onSelectPerson, onAddChild, onAddSpouse, onAddSibling, onAddParent, lang);
+        renderPersonNode(nodeG, spouse, spouseX, selectedPersonId, onSelectPerson, onAddParent, onAddChild, onAddSibling, onAddSpouse, onEditPerson, lang);
 
         // Spouse connection line
         nodeG.append('line')
@@ -102,7 +103,7 @@ export default function TreeView({ members, rootId, sideFilter, selectedPersonId
       }
 
     });
-  }, [members, rootId, sideFilter, onSelectPerson, onAddChild, onAddSpouse, onAddParent, onAddSibling, lang]);
+  }, [members, rootId, sideFilter, onSelectPerson, onAddParent, onAddChild, onAddSibling, onAddSpouse, onEditPerson, lang]);
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -191,10 +192,11 @@ function renderPersonNode(
   offsetX: number,
   selectedPersonId: string | null,
   onSelect: (p: Person) => void,
-  onAddChild: (id: string) => void,
-  onAddSpouse: (id: string) => void,
-  onAddSibling: (id: string) => void,
   onAddParent: (id: string) => void,
+  onAddChild: (id: string) => void,
+  onAddSibling: (id: string) => void,
+  onAddSpouse: (id: string) => void,
+  onEditPerson: (id: string) => void,
   lang: Language
 ) {
   const photoSize = 56;
@@ -260,9 +262,27 @@ function renderPersonNode(
   const isSelected = selectedPersonId === person.id;
   const actionOverlay = g.append('g').style('opacity', isSelected ? 1 : 0);
   const actionButtons = [
-    { x: -NODE_WIDTH / 2 + 18, y: -22, symbol: '↑', title: '添加父/母', handler: () => onAddParent(person.id) },
-    { x: 0, y: NODE_HEIGHT - 42, symbol: '+', title: '添加子女', handler: () => onAddChild(person.id) },
-    { x: NODE_WIDTH / 2 - 18, y: -22, symbol: '↔', title: '添加兄弟姐妹', handler: () => onAddSibling(person.id) },
+    { 
+      x: -NODE_WIDTH / 2 + 18, 
+      y: -22, 
+      symbol: '↑', 
+      title: '添加父母', 
+      handler: () => onAddParent(person.id)
+    },
+    {
+      x: NODE_WIDTH / 2 - 18,
+      y: -22,
+      symbol: '↔',
+      title: '添加兄弟姐妹',
+      handler: () => onAddSibling(person.id)
+    },
+    { 
+      x: 0, 
+      y: NODE_HEIGHT - 42, 
+      symbol: '+', 
+      title: '添加子女', 
+      handler: () => onAddChild(person.id) 
+    },
   ];
 
   actionButtons.forEach((button) => {

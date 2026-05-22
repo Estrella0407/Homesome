@@ -138,6 +138,7 @@ export function TreeProvider({ children }: { children: React.ReactNode }) {
       parentIds: m.parentIds.filter((id) => id !== personId),
       spouseIds: m.spouseIds.filter((id) => id !== personId),
       childrenIds: m.childrenIds.filter((id) => id !== personId),
+      siblingsIds: m.siblingsIds?.filter((id) => id !== personId) || [],
     }));
     for (const m of remaining) {
       await treeService.saveMember(activeTree.id, m);

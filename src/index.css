@@ -181,6 +181,7 @@ a:hover {
   transition: all var(--transition-fast);
   white-space: nowrap;
   user-select: none;
+  min-width: 104px;
 }
 
 .btn-primary {

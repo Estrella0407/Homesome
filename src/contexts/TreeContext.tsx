@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import type { Person, FamilyTree, SideFilter } from '../types';
+import type { Person, FamilyTree, SideFilter, TreeShare } from '../types';
 import { useAuth } from './AuthContext';
 import * as treeService from '../services/treeService';
 
@@ -9,6 +9,7 @@ interface TreeContextType {
   members: Person[];
   sideFilter: SideFilter;
   loading: boolean;
+  treesLoaded: boolean;
   setActiveTree: (tree: FamilyTree | null) => void;
   setSideFilter: (f: SideFilter) => void;
   loadTrees: () => Promise<void>;
@@ -19,9 +20,12 @@ interface TreeContextType {
   saveMember: (person: Person) => Promise<void>;
   deleteMember: (personId: string) => Promise<void>;
   joinTree: (code: string) => Promise<FamilyTree | null>;
+  shareTree: (share: Omit<TreeShare, 'joinedAt'>) => Promise<void>;
+  revokeShare: (userId: string) => Promise<void>;
 }
 
 const TreeContext = createContext<TreeContextType>(null!);
+const LAST_TREE_KEY = 'homesome_last_tree';
 
 export function TreeProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -30,6 +34,7 @@ export function TreeProvider({ children }: { children: React.ReactNode }) {
   const [members, setMembers] = useState<Person[]>([]);
   const [sideFilter, setSideFilter] = useState<SideFilter>('all');
   const [loading, setLoading] = useState(false);
+  const [treesLoaded, setTreesLoaded] = useState(false);
 
   const loadTrees = useCallback(async () => {
     if (!user) return;
@@ -37,7 +42,10 @@ export function TreeProvider({ children }: { children: React.ReactNode }) {
     try {
       const t = await treeService.getUserTrees(user.uid);
       setTrees(t);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+      setTreesLoaded(true);
+    }
   }, [user]);
 
   const loadMembers = useCallback(async () => {
@@ -51,6 +59,20 @@ export function TreeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { if (user) loadTrees(); }, [user, loadTrees]);
   useEffect(() => { if (activeTree) loadMembers(); }, [activeTree, loadMembers]);
+  useEffect(() => {
+    if (activeTree) {
+      localStorage.setItem(LAST_TREE_KEY, activeTree.id);
+    } else {
+      localStorage.removeItem(LAST_TREE_KEY);
+    }
+  }, [activeTree]);
+  useEffect(() => {
+    if (!user || activeTree || trees.length === 0) return;
+    const lastTreeId = localStorage.getItem(LAST_TREE_KEY);
+    if (!lastTreeId) return;
+    const tree = trees.find((t) => t.id === lastTreeId);
+    if (tree) setActiveTree(tree);
+  }, [user, activeTree, trees]);
 
   const createNewTree = async (name: string) => {
     if (!user) throw new Error('Not authenticated');
@@ -63,6 +85,26 @@ export function TreeProvider({ children }: { children: React.ReactNode }) {
     if (!activeTree) return;
     await treeService.updateTree(activeTree.id, updates);
     const updated = { ...activeTree, ...updates };
+    setActiveTree(updated);
+    setTrees((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+  };
+
+  const shareTree = async (share: Omit<TreeShare, 'joinedAt'>) => {
+    if (!activeTree) return;
+    const existingShares = activeTree.shares || [];
+    const updatedShares = existingShares.filter((s) => s.userId !== share.userId);
+    updatedShares.push({ ...share, joinedAt: new Date() });
+    await treeService.updateTree(activeTree.id, { shares: updatedShares });
+    const updated = { ...activeTree, shares: updatedShares };
+    setActiveTree(updated);
+    setTrees((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+  };
+
+  const revokeShare = async (userId: string) => {
+    if (!activeTree) return;
+    const updatedShares = (activeTree.shares || []).filter((s) => s.userId !== userId);
+    await treeService.updateTree(activeTree.id, { shares: updatedShares });
+    const updated = { ...activeTree, shares: updatedShares };
     setActiveTree(updated);
     setTrees((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
   };
@@ -108,7 +150,23 @@ export function TreeProvider({ children }: { children: React.ReactNode }) {
 
   const joinTree = async (code: string) => {
     const tree = await treeService.getTreeByShareCode(code);
-    if (tree && !trees.find((t) => t.id === tree.id)) {
+    if (!tree) return null;
+    if (user) {
+      const existingShares = tree.shares || [];
+      if (!existingShares.find((s) => s.userId === user.uid)) {
+        const newShare = {
+          userId: user.uid,
+          email: user.email || '',
+          displayName: user.displayName || user.email || user.uid,
+          role: 'viewer' as const,
+          joinedAt: new Date(),
+        };
+        const updatedShares = [...existingShares, newShare];
+        await treeService.updateTree(tree.id, { shares: updatedShares });
+        tree.shares = updatedShares;
+      }
+    }
+    if (!trees.find((t) => t.id === tree.id)) {
       setTrees((prev) => [...prev, tree]);
     }
     return tree;
@@ -116,10 +174,11 @@ export function TreeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <TreeContext.Provider value={{
-      trees, activeTree, members, sideFilter, loading,
+      trees, activeTree, members, sideFilter, loading, treesLoaded,
       setActiveTree, setSideFilter, loadTrees, loadMembers,
       createTree: createNewTree, updateTree: updateCurrentTree,
       deleteTree: deleteCurrentTree, saveMember, deleteMember: removeMember, joinTree,
+      shareTree, revokeShare,
     }}>
       {children}
     </TreeContext.Provider>

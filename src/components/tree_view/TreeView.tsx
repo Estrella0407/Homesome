@@ -2,7 +2,9 @@ import { useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
 import type { Person, TreeNode, SideFilter } from '../../types';
 import { buildHierarchy, NODE_WIDTH, NODE_HEIGHT, SPOUSE_GAP } from '../../utils/treeLayout';
-import { getDefaultAvatar, getLifeSpan } from '../../utils/helpers';
+import { getDefaultAvatar, getDisplayName, getLifeSpan } from '../../utils/helpers';
+import { useI18n } from '../../contexts/I18nContext';
+import type { Language } from '../../utils/i18n';
 import './TreeView.css';
 
 interface Props {
@@ -25,6 +27,7 @@ export default function TreeView({ members, rootId, sideFilter, selectedPersonId
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const { lang } = useI18n();
 
   const renderTree = useCallback(() => {
     if (!svgRef.current || !gRef.current) return;
@@ -80,18 +83,18 @@ export default function TreeView({ members, rootId, sideFilter, selectedPersonId
       nodeG.transition().delay(i * 50).duration(400).style('opacity', 1);
 
       // Render primary person
-      renderPersonNode(nodeG, person, offsetX, selectedPersonId, onSelectPerson, onAddChild, onAddSpouse, onAddSibling, onAddParent);
+      renderPersonNode(nodeG, person, offsetX, selectedPersonId, onSelectPerson, onAddChild, onAddSpouse, onAddSibling, onAddParent, lang);
 
       // Render spouse
       if (spouse && hasSpouse) {
         const spouseX = NODE_WIDTH / 2 + SPOUSE_GAP / 2;
-        renderPersonNode(nodeG, spouse, spouseX, selectedPersonId, onSelectPerson, onAddChild, onAddSpouse, onAddSibling, onAddParent);
+        renderPersonNode(nodeG, spouse, spouseX, selectedPersonId, onSelectPerson, onAddChild, onAddSpouse, onAddSibling, onAddParent, lang);
 
         // Spouse connection line
         nodeG.append('line')
-          .attr('x1', offsetX + NODE_WIDTH / 2 + 5)
+          .attr('x1', offsetX + NODE_WIDTH / 2 - 5)
           .attr('y1', 35)
-          .attr('x2', spouseX - NODE_WIDTH / 2 + 25)
+          .attr('x2', spouseX - NODE_WIDTH / 2 + 5)
           .attr('y2', 35)
           .attr('stroke', 'var(--accent-warm)')
           .attr('stroke-width', 2)
@@ -99,7 +102,7 @@ export default function TreeView({ members, rootId, sideFilter, selectedPersonId
       }
 
     });
-  }, [members, rootId, sideFilter, onSelectPerson, onAddChild, onAddSpouse, onAddParent, onAddSibling]);
+  }, [members, rootId, sideFilter, onSelectPerson, onAddChild, onAddSpouse, onAddParent, onAddSibling, lang]);
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -191,7 +194,8 @@ function renderPersonNode(
   onAddChild: (id: string) => void,
   onAddSpouse: (id: string) => void,
   onAddSibling: (id: string) => void,
-  onAddParent: (id: string) => void
+  onAddParent: (id: string) => void,
+  lang: Language
 ) {
   const photoSize = 56;
   const g = parent.append('g')
@@ -211,38 +215,44 @@ function renderPersonNode(
     .style('pointer-events', 'all');
 
   // Photo
-  const imgSize = photoSize;
   const clipId = `clip-${person.id}-${Math.random().toString(36).substring(2, 6)}`;
+
+  // Adjust vertical positions: lower the photo and add a bit more spacing
+  const photoCenterY = 36; // moved down from 30
+  const imgSize = photoSize;
+  const nameY = photoCenterY + imgSize; // space below photo
+  const lifespanY = nameY + 16; // space between name and lifespan
 
   const defs = g.append('defs');
   defs.append('clipPath').attr('id', clipId)
-    .append('circle').attr('cx', 0).attr('cy', 30).attr('r', imgSize / 2);
+    .append('circle').attr('cx', 0).attr('cy', photoCenterY).attr('r', imgSize / 2);
 
   // Photo border ring
   const ringColor = person.side === 'maternal' ? 'var(--maternal-color)' : person.side === 'self' ? 'var(--accent-jade)' : 'var(--paternal-color)';
-  g.append('circle').attr('cx', 0).attr('cy', 30).attr('r', imgSize / 2 + 3)
+  g.append('circle').attr('cx', 0).attr('cy', photoCenterY).attr('r', imgSize / 2 + 3)
     .attr('fill', 'none').attr('stroke', ringColor).attr('stroke-width', 2.5);
 
   g.append('image')
-    .attr('x', -imgSize / 2).attr('y', 30 - imgSize / 2)
+    .attr('x', -imgSize / 2).attr('y', photoCenterY - imgSize / 2)
     .attr('width', imgSize).attr('height', imgSize)
     .attr('href', person.photoUrl || getDefaultAvatar(person.gender))
     .attr('clip-path', `url(#${clipId})`)
     .attr('preserveAspectRatio', 'xMidYMid slice');
 
   // Name
+  const displayName = getDisplayName(person, lang) || '—';
   g.append('text')
-    .attr('text-anchor', 'middle').attr('y', 75)
+    .attr('text-anchor', 'middle').attr('y', nameY)
     .attr('font-family', 'var(--font-chinese)')
     .attr('font-size', '14').attr('font-weight', '600')
     .attr('fill', 'var(--text-primary)')
-    .text(person.name || '未命名');
+    .text(displayName);
 
   // Lifespan
-  const lifespan = getLifeSpan(person.birthYear, person.deathYear);
+  const lifespan = getLifeSpan(person.birthYear, person.deathYear, lang);
   if (lifespan) {
     g.append('text')
-      .attr('text-anchor', 'middle').attr('y', 92)
+      .attr('text-anchor', 'middle').attr('y', lifespanY)
       .attr('font-size', '11').attr('fill', 'var(--text-tertiary)')
       .text(lifespan);
   }

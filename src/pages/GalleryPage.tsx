@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useI18n } from '../contexts/I18nContext';
 import { useTree } from '../contexts/TreeContext';
+import { getDisplayName, getRelationshipLabel, getTreeDisplayName } from '../utils/helpers';
 import type { Person } from '../types';
+import type { TranslationKey } from '../utils/i18n';
 
-function PersonCard({ person, onClick }: { person: Person; onClick: () => void }) {
+function PersonCard({ person, onClick, lang, t }: { person: Person; onClick: () => void; lang: 'zh' | 'en'; t: (key: TranslationKey) => string }) {
   return (
     <button
       onClick={onClick}
@@ -21,14 +23,14 @@ function PersonCard({ person, onClick }: { person: Person; onClick: () => void }
       }}
     >
       <div style={{ width: 46, height: 46, borderRadius: 9999, background: 'var(--bg-tertiary)', display: 'grid', placeItems: 'center', fontFamily: 'var(--font-chinese)', fontWeight: 700, color: 'var(--text-secondary)' }}>
-        {person.name?.charAt(0) || '?'}
+        {getDisplayName(person, lang)?.charAt(0) || '?'}
       </div>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontFamily: 'var(--font-chinese)', fontSize: 15, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {person.name || '未命名'}
+          {getDisplayName(person, lang) || t('person.unnamed')}
         </div>
         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {person.birthYear || '—'} · {person.side}
+          {person.birthYear || '—'} · {getRelationshipLabel(person.relationship ?? 'unknown', lang)}
         </div>
       </div>
     </button>
@@ -36,17 +38,23 @@ function PersonCard({ person, onClick }: { person: Person; onClick: () => void }
 }
 
 export default function GalleryPage() {
-  const { t } = useI18n();
-  const { activeTree, members } = useTree();
+  const { t, lang } = useI18n();
+  const { activeTree, members, treesLoaded } = useTree();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
 
-  if (!activeTree) return <Navigate to="/" replace />;
+  if (!activeTree) {
+    if (!treesLoaded) return null;
+    return <Navigate to="/" replace />;
+  }
 
   const filtered = useMemo(() => {
     const query = q.trim();
     if (!query) return members;
-    return members.filter((m) => (m.name || '').includes(query) || (m.surname || '').includes(query));
+    return members.filter((m) => {
+      const text = `${m.nameCN} ${m.nameEN} ${m.surname}`.toLowerCase();
+      return text.includes(query.toLowerCase());
+    });
   }, [members, q]);
 
   return (
@@ -54,7 +62,7 @@ export default function GalleryPage() {
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
         <div>
           <h2 style={{ fontSize: 22 }}>{t('gallery.title')}</h2>
-          <p style={{ color: 'var(--text-secondary)', marginTop: 4 }}>{activeTree.name}</p>
+          <p style={{ color: 'var(--text-secondary)', marginTop: 4 }}>{getTreeDisplayName(activeTree, lang)}</p>
         </div>
         <input className="form-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('gallery.search')} style={{ width: 260 }} />
       </div>
@@ -73,7 +81,7 @@ export default function GalleryPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
           {filtered.map((m) => (
-            <PersonCard key={m.id} person={m} onClick={() => navigate('/tree')} />
+            <PersonCard key={m.id} person={m} onClick={() => navigate('/tree')} lang={lang} t={t} />
           ))}
         </div>
       )}

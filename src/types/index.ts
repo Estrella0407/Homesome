@@ -1,6 +1,8 @@
 export interface Person {
   id: string;
-  name: string;
+  name?: string;
+  nameCN: string;
+  nameEN: string;
   surname: string;
   gender: 'male' | 'female';
   /**
@@ -13,6 +15,7 @@ export interface Person {
   photoUrl: string | null;
   notes: string;
   side: 'paternal' | 'maternal' | 'self';
+  relationship: 'self' | 'direct' | 'sibling' | 'collateral' | 'divorced' | 'married' | 'step' | 'adoptive' | 'unknown';
   parentIds: string[];
   spouseIds: string[];
   childrenIds: string[];
@@ -23,10 +26,13 @@ export interface Person {
 
 export interface FamilyTree {
   id: string;
-  name: string;
+  name?: string;
+  nameCN: string;
+  nameEN: string;
   ownerId: string;
   rootPersonId: string;
   shareCode: string;
+  shares: TreeShare[];
   theme: 'traditional';
   createdAt: Date;
   updatedAt: Date;
@@ -34,6 +40,8 @@ export interface FamilyTree {
 
 export interface TreeShare {
   userId: string;
+  email?: string;
+  displayName?: string;
   role: 'viewer' | 'editor';
   joinedAt: Date;
 }

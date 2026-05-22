@@ -11,10 +11,47 @@ export function generateShareCode(): string {
   return code;
 }
 
-export function getLifeSpan(birthYear: string, deathYear: string | null): string {
+import type { Language } from './i18n';
+import { translations } from './i18n';
+import type { Person, FamilyTree } from '../types';
+
+export function getDisplayName(person: Person, lang: Language): string {
+  if (lang === 'zh') {
+    return person.nameCN || person.nameEN || person.name || person.surname || '';
+  }
+  return person.nameEN || person.nameCN || person.name || person.surname || '';
+}
+
+export function getTreeDisplayName(tree: FamilyTree, lang: Language): string {
+  if (lang === 'zh') {
+    return tree.nameCN || tree.nameEN || tree.name || '';
+  }
+  return tree.nameEN || tree.nameCN || tree.name || '';
+}
+
+export function getRelationshipLabel(
+  relationship: Person['relationship'],
+  lang: Language
+): string {
+  const t = (key: keyof typeof translations['zh']) => (translations[lang] as Record<string, string>)[key] || '';
+  if (relationship === 'self') return t('relationship.self');
+  if (relationship === 'direct') return t('relationship.direct');
+  if (relationship === 'sibling') return t('relationship.sibling');
+  if (relationship === 'divorced') return t('relationship.divorced');
+  if (relationship === 'married') return t('relationship.married');
+  if (relationship === 'step') return t('relationship.step');
+  if (relationship === 'adoptive') return t('relationship.adoptive');
+  if (relationship === 'collateral') {
+    return t('relationship.collateral');
+  }
+  return t('relationship.unknown');
+}
+
+export function getLifeSpan(birthYear: string, deathYear: string | null, lang: Language = 'zh'): string {
   if (!birthYear && !deathYear) return '';
-  if (birthYear && !deathYear) return `${birthYear} —`;
-  if (!birthYear && deathYear) return `— ${deathYear}`;
+  const t = (key: keyof typeof translations['zh']) => (translations[lang] as Record<string, string>)[key] || '';
+  if (birthYear && !deathYear) return `${birthYear} — ${t('life.present')}`;
+  if (!birthYear && deathYear) return `${t('life.unknown')} — ${deathYear}`;
   return `${birthYear} — ${deathYear}`;
 }
 

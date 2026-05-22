@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../contexts/I18nContext';
 import { useTree } from '../contexts/TreeContext';
+import { getTreeDisplayName } from '../utils/helpers';
 import Modal from '../components/common/Modal';
 
 export default function HomePage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { trees, activeTree, setActiveTree, createTree, joinTree, loading } = useTree();
   const navigate = useNavigate();
 
@@ -68,7 +69,7 @@ export default function HomePage() {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                 <div>
-                  <div style={{ fontFamily: 'var(--font-chinese)', fontSize: 16, fontWeight: 700 }}>{tree.name}</div>
+                  <div style={{ fontFamily: 'var(--font-chinese)', fontSize: 16, fontWeight: 700 }}>{getTreeDisplayName(tree, lang)}</div>
                   <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-tertiary)' }}>
                     {tree.shareCode} · {tree.rootPersonId ? '已设置根节点' : '未设置根节点'}
                   </div>

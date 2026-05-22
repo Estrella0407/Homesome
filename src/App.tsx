@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { I18nProvider } from './contexts/I18nContext';
-import { TreeProvider } from './contexts/TreeContext';
-import Sidebar from './components/Sidebar/Sidebar';
+import { TreeProvider, useTree } from './contexts/TreeContext';
+
+const LAST_PAGE_KEY = 'homesome_last_page';
+import Sidebar from './components/sidebar/Sidebar';
 import AuthPage from './pages/AuthPage';
 import HomePage from './pages/HomePage';
 import TreePage from './pages/TreePage';
@@ -12,6 +14,7 @@ import SettingsPage from './pages/SettingsPage';
 
 function AppFrame() {
   const { user, loading } = useAuth();
+  const { activeTree, treesLoaded } = useTree();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -21,6 +24,20 @@ function AppFrame() {
       : location.pathname.startsWith('/gallery') ? 'gallery'
         : location.pathname.startsWith('/settings') ? 'settings'
           : 'home';
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/settings') || location.pathname.startsWith('/auth')) return;
+    if (location.pathname === '/tree' && !activeTree) return;
+    localStorage.setItem(LAST_PAGE_KEY, location.pathname);
+  }, [location.pathname, activeTree]);
+
+  useEffect(() => {
+    if (location.pathname !== '/') return;
+    const lastPage = localStorage.getItem(LAST_PAGE_KEY);
+    if (!lastPage || lastPage === '/' || lastPage.startsWith('/settings') || lastPage.startsWith('/auth')) return;
+    if (lastPage === '/tree' && !treesLoaded) return;
+    navigate(lastPage, { replace: true });
+  }, [location.pathname, navigate, treesLoaded]);
 
   if (loading) {
     return (

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import TreeView from '../components/TreeView/TreeView';
+import TreeView from '../components/tree_view/TreeView';
 import Modal from '../components/common/Modal';
 import { useI18n } from '../contexts/I18nContext';
 import { useTree } from '../contexts/TreeContext';
 import type { Person, PersonFormData, SideFilter } from '../types';
-import { generateId } from '../utils/helpers';
+import type { Language, TranslationKey } from '../utils/i18n';
+import { getDisplayName, getTreeDisplayName, getRelationshipLabel, generateId } from '../utils/helpers';
 
 type EditorMode =
   | { kind: 'create-root' }
@@ -16,7 +17,8 @@ type EditorMode =
   | { kind: 'edit'; personId: string };
 
 const emptyForm = (): PersonFormData => ({
-  name: '',
+  nameCN: '',
+  nameEN: '',
   surname: '',
   gender: 'male',
   birthDate: null,
@@ -25,14 +27,15 @@ const emptyForm = (): PersonFormData => ({
   photoUrl: null,
   notes: '',
   side: 'paternal',
+  relationship: 'unknown',
   parentIds: [],
   spouseIds: [],
   order: 1,
 });
 
 export default function TreePage() {
-  const { t } = useI18n();
-  const { activeTree, members, sideFilter, setSideFilter, saveMember, deleteMember, updateTree } = useTree();
+  const { t, lang } = useI18n();
+  const { activeTree, members, sideFilter, setSideFilter, saveMember, deleteMember, updateTree, treesLoaded } = useTree();
 
   const [selected, setSelected] = useState<Person | null>(null);
   const [editor, setEditor] = useState<EditorMode | null>(null);
@@ -41,7 +44,10 @@ export default function TreePage() {
   const rootId = activeTree?.rootPersonId || '';
   const memberMap = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
 
-  if (!activeTree) return <Navigate to="/" replace />;
+  if (!activeTree) {
+    if (!treesLoaded) return null;
+    return <Navigate to="/" replace />;
+  }
 
   const rel = useMemo(() => {
     const byId = memberMap;
@@ -84,20 +90,36 @@ export default function TreePage() {
     if (mode.kind === 'edit') {
       const p = memberMap.get(mode.personId);
       if (p) {
-        const { id: _id, createdAt: _c, updatedAt: _u, childrenIds: _kids, ...rest } = p;
-        setForm({ ...rest, id: p.id });
+        const {
+          id: _id,
+          createdAt: _c,
+          updatedAt: _u,
+          childrenIds: _kids,
+          nameCN,
+          nameEN,
+          name,
+          relationship,
+          ...rest
+        } = p;
+        setForm({
+          ...rest,
+          id: p.id,
+          nameCN: nameCN || name || '',
+          nameEN: nameEN || name || '',
+          relationship: relationship || 'unknown',
+        });
       }
     } else {
       setForm(emptyForm());
       if (mode.kind === 'create-root') {
-        setForm((prev) => ({ ...prev, side: 'paternal', parentIds: [] }));
+        setForm((prev) => ({ ...prev, side: 'self', relationship: 'self', parentIds: [] }));
       }
       if (mode.kind === 'create-child') {
-        setForm((prev) => ({ ...prev, parentIds: [mode.parentId] }));
+        setForm((prev) => ({ ...prev, parentIds: [mode.parentId], relationship: 'direct' }));
       }
       if (mode.kind === 'create-parent') {
         // parent is a root-ish node: no parentIds by default
-        setForm((prev) => ({ ...prev, parentIds: [] }));
+        setForm((prev) => ({ ...prev, parentIds: [], relationship: 'direct' }));
         const child = memberMap.get(mode.childId);
         if (child) {
           // inherit side unless child is 'self'
@@ -107,13 +129,13 @@ export default function TreePage() {
       if (mode.kind === 'create-sibling') {
         const p = memberMap.get(mode.personId);
         if (p) {
-          setForm((prev) => ({ ...prev, parentIds: [...p.parentIds], side: p.side }));
+          setForm((prev) => ({ ...prev, parentIds: [...p.parentIds], side: p.side, relationship: 'sibling' }));
         }
       }
       if (mode.kind === 'create-spouse') {
         // default spouse side follows the person
         const p = memberMap.get(mode.personId);
-        if (p) setForm((prev) => ({ ...prev, side: p.side }));
+        if (p) setForm((prev) => ({ ...prev, side: p.side, relationship: 'married' }));
       }
     }
   };
@@ -127,7 +149,9 @@ export default function TreePage() {
       data.birthDate && data.birthDate.length >= 4 ? data.birthDate.slice(0, 4) : '';
     const person: Person = {
       id,
-      name: data.name,
+      name: data.nameCN || data.nameEN || undefined,
+      nameCN: data.nameCN,
+      nameEN: data.nameEN,
       surname: data.surname,
       gender: data.gender,
       birthDate: data.birthDate ?? null,
@@ -136,6 +160,7 @@ export default function TreePage() {
       photoUrl: data.photoUrl,
       notes: data.notes,
       side: data.side,
+      relationship: data.relationship || 'unknown',
       parentIds: data.parentIds,
       spouseIds: data.spouseIds,
       childrenIds: existing?.childrenIds || [],
@@ -256,11 +281,11 @@ export default function TreePage() {
       : editor.kind === 'create-parent'
         ? memberMap.get(editor.childId)
         : memberMap.get(editor.personId);
-    const name = target?.name || '选中成员';
-    if (editor.kind === 'create-child') return `正在为 ${name} 添加子女。`;
-    if (editor.kind === 'create-parent') return `正在为 ${name} 添加父/母。`;
-    if (editor.kind === 'create-sibling') return `正在为 ${name} 添加兄弟姐妹。`;
-    if (editor.kind === 'create-spouse') return `正在为 ${name} 添加配偶。`;
+    const targetName = target ? getDisplayName(target, lang) : t('person.unnamed');
+    if (editor.kind === 'create-child') return `正在为 ${targetName} 添加子女。`;
+    if (editor.kind === 'create-parent') return `正在为 ${targetName} 添加父/母。`;
+    if (editor.kind === 'create-sibling') return `正在为 ${targetName} 添加兄弟姐妹。`;
+    if (editor.kind === 'create-spouse') return `正在为 ${targetName} 添加配偶。`;
     return '';
   })();
 
@@ -279,7 +304,7 @@ export default function TreePage() {
       <div style={{ padding: 16, display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-light)' }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <h2 style={{ fontSize: 18 }}>{t('tree.title')}</h2>
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>{activeTree.name}</span>
+          <span style={{ color: 'var(--text-tertiary)', fontSize: 12 }}>{getTreeDisplayName(activeTree, lang)}</span>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {filterButton('all', t('tree.all'))}
@@ -326,10 +351,10 @@ export default function TreePage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div style={{ fontFamily: 'var(--font-chinese)', fontWeight: 800, fontSize: 18 }}>
-                  {selected.name || '未命名'}
+                  {getDisplayName(selected, lang) || t('person.unnamed')}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-                  {(selected.birthDate || selected.birthYear || '—')} · {selected.side}
+                  {(selected.birthDate || selected.birthYear || '—')} · {getRelationshipLabel(selected.relationship ?? 'unknown', lang)}
                 </div>
               </div>
               <button className="btn-icon" onClick={() => setSelected(null)} aria-label="Close">
@@ -352,26 +377,36 @@ export default function TreePage() {
               title="父母"
               people={rel.parentsOf(selected)}
               onPick={(p) => setSelected(p)}
+              lang={lang}
+              t={t}
             />
             <RelSection
               title="配偶"
               people={rel.spousesOf(selected)}
               onPick={(p) => setSelected(p)}
+              lang={lang}
+              t={t}
             />
             <RelSection
               title="子女"
               people={rel.childrenOf(selected)}
               onPick={(p) => setSelected(p)}
+              lang={lang}
+              t={t}
             />
             <RelSection
               title="兄弟姐妹"
               people={rel.siblingsOf(selected)}
               onPick={(p) => setSelected(p)}
+              lang={lang}
+              t={t}
             />
             <RelSection
               title="堂/表兄弟姐妹"
               people={rel.cousinsOf(selected)}
               onPick={(p) => setSelected(p)}
+              lang={lang}
+              t={t}
             />
 
             <div style={{ marginTop: 6 }}>
@@ -411,7 +446,7 @@ export default function TreePage() {
             </button>
             <button
               className="btn btn-primary"
-              disabled={!form.name.trim()}
+              disabled={!((form.nameCN || '').trim() || (form.nameEN || '').trim())}
               onClick={async () => {
                 if (!editor) return;
                 await upsertWithRelations(editor, form);
@@ -431,8 +466,12 @@ export default function TreePage() {
             </div>
           ) : null}
           <div className="form-group">
-            <label className="form-label">{t('person.name')}</label>
-            <input className="form-input" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
+            <label className="form-label">{t('person.nameCN')}</label>
+            <input className="form-input" value={form.nameCN} onChange={(e) => setForm((p) => ({ ...p, nameCN: e.target.value }))} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">{t('person.nameEN')}</label>
+            <input className="form-input" value={form.nameEN} onChange={(e) => setForm((p) => ({ ...p, nameEN: e.target.value }))} />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -444,14 +483,29 @@ export default function TreePage() {
               </select>
             </div>
             <div className="form-group">
+              <label className="form-label">{t('person.relationship')}</label>
+              <select className="form-select" value={form.relationship} onChange={(e) => setForm((p) => ({ ...p, relationship: e.target.value as Person['relationship'] }))}>
+                <option value="self">{t('relationship.self')}</option>
+                <option value="direct">{t('relationship.direct')}</option>
+                <option value="sibling">{t('relationship.sibling')}</option>
+                <option value="collateral">{t('relationship.collateral')}</option>
+                <option value="divorced">{t('relationship.divorced')}</option>
+                <option value="married">{t('relationship.married')}</option>
+                <option value="step">{t('relationship.step')}</option>
+                <option value="adoptive">{t('relationship.adoptive')}</option>
+                <option value="unknown">{t('relationship.unknown')}</option>
+              </select>
+            </div>
+          </div>
+          {form.relationship === 'collateral' ? (
+            <div className="form-group">
               <label className="form-label">{t('person.side')}</label>
               <select className="form-select" value={form.side} onChange={(e) => setForm((p) => ({ ...p, side: e.target.value as Person['side'] }))}>
                 <option value="paternal">{t('person.paternal')}</option>
                 <option value="maternal">{t('person.maternal')}</option>
-                <option value="self">{t('person.self')}</option>
               </select>
             </div>
-          </div>
+          ) : null}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="form-group">
@@ -487,7 +541,7 @@ export default function TreePage() {
                 <option value="">{t('person.noParent')}</option>
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.name || '未命名'}
+                    {getDisplayName(m, lang) || t('person.unnamed')}
                   </option>
                 ))}
               </select>
@@ -504,7 +558,7 @@ export default function TreePage() {
   );
 }
 
-function RelSection({ title, people, onPick }: { title: string; people: Person[]; onPick: (p: Person) => void }) {
+function RelSection({ title, people, onPick, lang, t }: { title: string; people: Person[]; onPick: (p: Person) => void; lang: Language; t: (key: TranslationKey) => string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -521,9 +575,9 @@ function RelSection({ title, people, onPick }: { title: string; people: Person[]
               className="btn btn-secondary btn-sm"
               onClick={() => onPick(p)}
               style={{ padding: '6px 10px' }}
-              title={p.name}
+              title={getDisplayName(p, lang) || t('person.unnamed')}
             >
-              {p.name || '未命名'}
+              {getDisplayName(p, lang) || t('person.unnamed')}
             </button>
           ))}
         </div>

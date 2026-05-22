@@ -1,6 +1,7 @@
 import { useI18n } from '../../contexts/I18nContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTree } from '../../contexts/TreeContext';
+import { getTreeDisplayName } from '../../utils/helpers';
 import './Sidebar.css';
 
 interface Props {
@@ -31,7 +32,7 @@ export default function Sidebar({ currentPage, onNavigate, open, onClose }: Prop
 
         {activeTree && (
           <div className="sidebar-tree-name">
-            <span className="tree-name-text">{activeTree.name}</span>
+            <span className="tree-name-text">{getTreeDisplayName(activeTree, lang)}</span>
             <button className="btn-icon" title="Back" onClick={() => { setActiveTree(null); nav('home'); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             </button>

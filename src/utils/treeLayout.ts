@@ -3,7 +3,7 @@ import type { Person, TreeNode, SideFilter } from '../types';
 
 export const NODE_WIDTH = 130;
 export const NODE_HEIGHT = 160;
-export const SPOUSE_GAP = 40;
+export const SPOUSE_GAP = 60;
 export const LEVEL_GAP = 100;
 
 export function buildHierarchy(

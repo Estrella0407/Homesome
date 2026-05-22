@@ -63,13 +63,15 @@ function saveLocalMembers(treeId: string, members: Person[]) {
 }
 
 // ── Tree CRUD ──
-export async function createTree(name: string, ownerId: string): Promise<FamilyTree> {
+export async function createTree(nameCN: string, ownerId: string): Promise<FamilyTree> {
   const tree: FamilyTree = {
     id: generateId(),
-    name,
+    nameCN,
+    nameEN: '',
     ownerId,
     rootPersonId: '',
     shareCode: generateShareCode(),
+    shares: [],
     theme: 'traditional',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -99,6 +101,7 @@ export async function getUserTrees(userId: string): Promise<FamilyTree[]> {
       return {
         ...data,
         id: d.id,
+        shares: data.shares || [],
         createdAt: data.createdAt?.toDate?.() || new Date(),
         updatedAt: data.updatedAt?.toDate?.() || new Date(),
       } as FamilyTree;
@@ -114,9 +117,16 @@ export async function getTreeByShareCode(code: string): Promise<FamilyTree | nul
     if (snapshot.empty) return null;
     const d = snapshot.docs[0];
     const data = d.data();
-    return { ...data, id: d.id, createdAt: data.createdAt?.toDate?.(), updatedAt: data.updatedAt?.toDate?.() } as FamilyTree;
+    return {
+      ...data,
+      id: d.id,
+      shares: data.shares || [],
+      createdAt: data.createdAt?.toDate?.(),
+      updatedAt: data.updatedAt?.toDate?.(),
+    } as FamilyTree;
   }
-  return getLocalTrees().find((t) => t.shareCode === code) || null;
+  const tree = getLocalTrees().find((t) => t.shareCode === code) || null;
+  return tree ? { ...tree, shares: tree.shares || [] } : null;
 }
 
 export async function updateTree(treeId: string, updates: Partial<FamilyTree>): Promise<void> {

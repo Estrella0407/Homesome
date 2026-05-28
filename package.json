@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "d3": "^7.9.0",
+    "express": "^5.2.1",
     "firebase": "^12.13.0",
+    "puppeteer": "^25.1.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.15.0"

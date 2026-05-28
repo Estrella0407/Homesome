@@ -62,7 +62,7 @@ function AppFrame() {
         currentPage={pageKey}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onNavigate={(page) => {
+        onNavigate={(page: string) => {
           if (page === 'home') navigate('/');
           else navigate('/' + page);
         }}

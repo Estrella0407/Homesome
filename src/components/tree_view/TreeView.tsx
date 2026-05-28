@@ -283,6 +283,13 @@ function renderPersonNode(
       title: '添加子女', 
       handler: () => onAddChild(person.id) 
     },
+    {
+      x: NODE_WIDTH / 2 - 18,
+      y: -48,
+      symbol: '✎',
+      title: '编辑',
+      handler: () => onEditPerson(person.id)
+    },
   ];
 
   actionButtons.forEach((button) => {
